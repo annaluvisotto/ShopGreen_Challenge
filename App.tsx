@@ -10,7 +10,7 @@ import Login from './pages/Login';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
 import { UserRole, Seller } from './types';
-import { MOCK_SELLERS } from './constants';
+import {fetchSellers} from './services/ecommerceService';
 
 function App() {
   const [userRole, setUserRole] = useState<UserRole>(UserRole.ANONYMOUS);
@@ -18,7 +18,7 @@ function App() {
   const [favorites, setFavorites] = useState<string[]>([]);
 
   // Global State for Sellers (Dynamic creation)
-  const [sellers, setSellers] = useState<Seller[]>(MOCK_SELLERS);
+  const [sellers, setSellers] = useState<Seller[]>([]);
 
   // Settings State (RF7)
   const [language, setLanguage] = useState<'it' | 'en' | 'de'>('it');
@@ -38,6 +38,19 @@ function App() {
     setUserRole(user.role);
     setUserName(user.name);
   };
+
+  useEffect(() => {
+    const loadSellers = async () => {
+      try {
+        const data = await fetchSellers(); // Chiamata senza parametri per caricarli tutti
+        setSellers(data);
+      } catch (error) {
+        console.error("Errore durante il caricamento degli shop:", error);
+      }
+    };
+
+    loadSellers();
+  }, []);
 
   const handleLogout = () => {
     setUserRole(UserRole.ANONYMOUS);

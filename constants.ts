@@ -100,36 +100,6 @@ export const MOCK_ZONES: Zone[] = [
   { id: 'z3', name: 'Trento Nord', center: { lat: 46.085, lng: 11.115 } },
 ];
 
-export const MOCK_SELLERS: Seller[] = [
-  {
-    id: 's1',
-    username: 'EcoGiulia',
-    zoneIds: ['z1'],
-    categories: ['Abbigliamento', 'Vintage', 'Accessori'],
-    platformLinks: [{ name: 'Vinted', url: 'https://vinted.it' }, { name: 'Depop', url: 'https://depop.com' }],
-    avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200',
-    bio: 'Appassionata di moda vintage e upcycling. Scambio volentieri in zona Piazza Duomo o spedisco tramite Vinted. Rispondo la sera dopo le 18.'
-  },
-  {
-    id: 's2',
-    username: 'GreenTech',
-    zoneIds: ['z2', 'z3'], // Example of multi-zone
-    categories: ['Elettronica', 'Informatica', 'Riparazioni'],
-    platformLinks: [{ name: 'Subito', url: 'https://subito.it' }],
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200',
-    bio: 'Vendo elettronica ricondizionata e piccoli elettrodomestici riparati. Disponibile per consegne a mano zona Povo universitaria il martedì e giovedì.'
-  },
-  {
-    id: 's3',
-    username: 'LucaLibri',
-    zoneIds: ['z3'],
-    categories: ['Libri', 'Fumetti', 'Musica'],
-    platformLinks: [{ name: 'eBay', url: 'https://ebay.it' }],
-    avatarUrl: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200',
-    bio: 'Collezionista di fumetti e vinili. Svuoto la cantina! Scrivetemi per info.'
-  }
-];
-
 export const MOCK_NOTIFICATIONS: Notification[] = [
   // SYSTEM (All)
   {
