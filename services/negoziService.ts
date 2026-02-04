@@ -1,6 +1,36 @@
 import {Shop, ShopCategory, ShopStatus} from '../types';
 const API_URL = 'http://localhost:3000/api';
 
+const formatOrariForDisplay = (orariBackend: any): string => {
+    if (!orariBackend) return "Orari non disponibili";
+    
+    // Mappa per ordinare i giorni correttamente
+    const daysOrder = ['lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato', 'domenica'];
+    const displayNames: {[key: string]: string} = {
+        'lunedi': 'Lun', 'martedi': 'Mar', 'mercoledi': 'Mer',
+        'giovedi': 'Gio', 'venerdi': 'Ven', 'sabato': 'Sab', 'domenica': 'Dom'
+    };
+
+    let formattedString = "";
+
+    daysOrder.forEach(dayKey => {
+        const dayData = orariBackend[dayKey];
+        const label = displayNames[dayKey];
+
+        if (!dayData || dayData.chiuso) {
+            formattedString += `${label}: Chiuso\n`;
+        } else {
+            // Uniamo gli slot (es. "09:00-13:00 / 15:30-19:30")
+            const slotsString = dayData.slot
+                .map((s: any) => `${s.apertura}-${s.chiusura}`)
+                .join(' / ');
+            formattedString += `${label}: ${slotsString}\n`;
+        }
+    });
+
+    return formattedString.trim();
+};
+
 //funzione per mappare le coordinate da backend (string[]) a frontend (enum[])
 const mapCategoryStringToEnum = (catDB: string): ShopCategory => {
     switch (catDB) {
@@ -28,12 +58,14 @@ const isNegozioAperto = (orariDB: any): boolean => {
   if (!orariOggi || orariOggi.chiuso) {
     return false;
   }
-  for (const slot of orariOggi.slot) {
-    const start = timeToMinutes(slot.apertura);
-    const end = timeToMinutes(slot.chiusura);
-    if (currentMinutes >= start && currentMinutes <= end) {
-      return true;
-    }
+  if (orariOggi.slot && Array.isArray(orariOggi.slot)) {
+      for (const slot of orariOggi.slot) {
+        const start = timeToMinutes(slot.apertura);
+        const end = timeToMinutes(slot.chiusura);
+        if (currentMinutes >= start && currentMinutes <= end) {
+          return true; // È aperto in questo momento!
+        }
+      }
   }
   return false;
 };
@@ -64,15 +96,39 @@ const mapNegozio = (dbItem: any): Shop => {
       frontendCategories.push(ShopCategory.OTHER);
   }
 
+  let finalOwnerId: string | undefined = undefined;
+
+  if (dbItem.proprietario) {
+      // DEBUG: Vediamo cosa diavolo arriva dal backend
+      console.log(`[MAPPER] Negozio: ${dbItem.nome}`);
+      console.log(`[MAPPER] Raw Proprietario:`, dbItem.proprietario);
+
+      if (typeof dbItem.proprietario === 'object') {
+          // CASO 1: Il backend ha fatto 'populate'. Abbiamo un oggetto utente intero.
+          // Cerchiamo lo username. Se non c'è, proviamo id o _id.
+          finalOwnerId = dbItem.proprietario.username || dbItem.proprietario.id || dbItem.proprietario._id?.toString();
+      } else {
+          // CASO 2: È una stringa semplice (es. l'ID o lo username salvato direttamente)
+          finalOwnerId = dbItem.proprietario.toString();
+      }
+      
+      console.log(`[MAPPER] Owner Mapped To:`, finalOwnerId);
+  }
+
+  let pendingId = undefined;
+  if (dbItem.proprietarioInAttesa) {
+      pendingId = typeof dbItem.proprietarioInAttesa === 'object' 
+          ? (dbItem.proprietarioInAttesa._id || dbItem.proprietarioInAttesa.id)
+          : dbItem.proprietarioInAttesa.toString();
+  }
+
+
   return {
     id: dbItem._id,
     name: dbItem.nome,
-    
-    // INDIRIZZO: Fondamentale che il DB abbia il campo 'indirizzo' compilato
-    address: dbItem.indirizzo || "Indirizzo non disponibile",
-    
     categories: frontendCategories,
     status: statusCalcolato,
+    description: dbItem.descrizione || "",
     
     coordinates: {
         // Usiamo ?. per evitare crash se coordinate è null
@@ -80,10 +136,7 @@ const mapNegozio = (dbItem: any): Shop => {
         lng: dbItem.coordinate?.[1] || 0
     },
     
-    description: dbItem.descrizione || "",
-    
-    // --- GESTIONE ORARI ---
-    hours: "Vedi dettagli", // Testo mostrato nella card
+    hours: formatOrariForDisplay(dbItem.orari),
     
     // [IMPORTANTE] rawHours serve all'EditShopModal per pre-compilare i campi!
     rawHours: dbItem.orari, 
@@ -99,7 +152,8 @@ const mapNegozio = (dbItem: any): Shop => {
     votes: {},
     reviews: [],
     
-    ownerId: dbItem.proprietario ? dbItem.proprietario.toString() : undefined
+    ownerId: finalOwnerId,
+    pendingOwnerId: pendingId
   };
 };
 

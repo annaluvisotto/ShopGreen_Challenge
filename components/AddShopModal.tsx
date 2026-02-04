@@ -9,6 +9,7 @@ interface AddShopModalProps {
   userRole: UserRole;
   currentMapCenter: Coordinates;
   existingShops: Shop[]; 
+  currentUserId?: string | null;
   initialData?: {
     name?: string;
     ownerId?: string;
@@ -22,14 +23,14 @@ const formatCategoryLabel = (cat: string) => {
   return cat.charAt(0).toUpperCase() + cat.slice(1);
 };
 
-const AddShopModal: React.FC<AddShopModalProps> = ({ isOpen, onClose, onSubmit, userRole, currentMapCenter, existingShops, initialData }) => {
+const AddShopModal: React.FC<AddShopModalProps> = ({ isOpen, onClose, onSubmit, userRole, currentMapCenter, existingShops, initialData, currentUserId }) => {
   const [activeTab, setActiveTab] = useState<'report' | 'claim'>('report');
   const [isAlreadyPresent, setIsAlreadyPresent] = useState(false);
+  const [selectedExistingShopId, setSelectedExistingShopId] = useState<string | null>(null);
 
   // Dati Base
   const [name, setName] = useState('');
   const [category, setCategory] = useState<ShopCategory>(ShopCategory.OTHER);
-  const [address, setAddress] = useState('');
   const [ownerId, setOwnerId] = useState('');
   
   // Links
@@ -87,15 +88,16 @@ const AddShopModal: React.FC<AddShopModalProps> = ({ isOpen, onClose, onSubmit, 
   const handleExistingShopSelect = (shopId: string) => {
     const shop = existingShops.find(s => s.id === shopId);
     if (shop) {
+        setSelectedExistingShopId(shop.id);
         setName(shop.name);
         setCategory(shop.categories && shop.categories.length > 0 ? shop.categories[0] : ShopCategory.OTHER);
-        setAddress(shop.address);
         setLat(shop.coordinates.lat);
         setLng(shop.coordinates.lng);
         setWebsite(shop.website || '');
         setGoogleMapsLink(shop.googleMapsLink || '');
         setIosMapsLink(shop.iosMapsLink || '');
     } else {
+        setSelectedExistingShopId(null);
         setName('');
     }
   };
@@ -116,21 +118,40 @@ const AddShopModal: React.FC<AddShopModalProps> = ({ isOpen, onClose, onSubmit, 
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 1. Validazione Licenza (invariata)
+    if (activeTab === 'claim' && !previewImage) {
+        alert("Per segnalare la propria attività è obbligatorio caricare la licenza di vendita");
+        return;
+    }
     
-    // Stringa per UI Frontend (es: "09:00-13:00 / 15:30-19:30")
+    // 2. Logica Proprietario (invariata)
+    let finalOwnerId = undefined;
+    if (activeTab === 'claim' && currentUserId) {
+        finalOwnerId = currentUserId;
+    } 
+    else if (ownerId.trim() !== '') {
+        finalOwnerId = ownerId.trim();
+    }
+
+    // 3. Formattazione Orari (invariata)
     const formattedHoursString = structuredHours.map(h => {
         if (h.isClosed) return `${h.day}: Chiuso`;
-        // Costruiamo la stringa solo se i campi sono compilati (semplificazione)
         return `${h.day}: ${h.openMorning}-${h.closeMorning} / ${h.openAfternoon}-${h.closeAfternoon}`;
     }).join('\n');
 
+    // --- 4. LOGICA ZERO DUPLICATI (NUOVA) ---
+    // Stiamo facendo un aggiornamento se: siamo in tab 'claim', l'utente ha spuntato "già presente" E abbiamo selezionato un ID valido
+    const isUpdate = activeTab === 'claim' && isAlreadyPresent && !!selectedExistingShopId;
+
+    // Se è un aggiornamento, usiamo l'ID esistente. Altrimenti ne creiamo uno nuovo.
+    const finalId = isUpdate ? selectedExistingShopId! : Date.now().toString();
+
     const newShop: Shop = {
-      id: Date.now().toString(),
+      id: finalId, // <--- USA L'ID CALCOLATO QUI SOPRA
       name: name,
-      address: address,
-      description: activeTab === 'claim' ? 'Richiesta di reclamo attività esistente' : 'Nuova attività inserita',
       hours: formattedHoursString, 
       categories: [category],
       coordinates: { lat: Number(lat), lng: Number(lng) },
@@ -142,18 +163,24 @@ const AddShopModal: React.FC<AddShopModalProps> = ({ isOpen, onClose, onSubmit, 
       imageUrl: previewImage || '',
       votes: {},
       reviews: [],
-      ownerId: ownerId.trim() !== '' ? ownerId.trim() : undefined
+      ownerId: finalOwnerId,
+      // Se è un update, la descrizione è meno importante perché l'operatore sa già che è una rivendicazione dal flag proprietarioInAttesa
+      description: activeTab === 'claim' ? `Richiesta rivendicazione da utente: ${currentUserId}` : (name ? '' : 'Nuova attività inserita')
     };
 
-    // Passiamo l'oggetto strutturato completo al genitore
-    onSubmit({ ...newShop, rawHours: structuredHours } as any); 
+    // 5. INVIO AL GENITORE
+    // Passiamo 'isExistingUpdate' così Home.tsx sa se usare createNegozio (POST) o updateNegozio (PUT)
+    onSubmit({ 
+        ...newShop, 
+        rawHours: structuredHours,
+        isExistingUpdate: isUpdate // <--- FONDAMENTALE
+    } as any); 
     
     handleClose();
   };
 
   const handleClose = () => {
     setName('');
-    setAddress('');
     setCategory(ShopCategory.OTHER);
     setWebsite('');
     setGoogleMapsLink('');
@@ -161,6 +188,7 @@ const AddShopModal: React.FC<AddShopModalProps> = ({ isOpen, onClose, onSubmit, 
     setPreviewImage(null);
     setOwnerId('');
     setIsAlreadyPresent(false);
+    setSelectedExistingShopId(null);
     // Reset
     setStructuredHours(DAYS.map(day => ({ 
         day, openMorning: '09:00', closeMorning: '13:00', openAfternoon: '15:30', closeAfternoon: '19:30', isClosed: day === 'Domenica' 
@@ -232,20 +260,51 @@ const AddShopModal: React.FC<AddShopModalProps> = ({ isOpen, onClose, onSubmit, 
                 )}
 
                 <div className="space-y-4">
-                    {/* (Campi Nome, Categoria, Indirizzo - Codice esistente omesso) */}
                     <div className="space-y-1">
-                        <div className="flex items-center gap-2 ml-4 mb-1"><Type className="w-4 h-4 text-gray-400" /><label className="text-gray-600 font-bold text-sm">Nome Attività</label></div>
-                        {activeTab === 'claim' && isAlreadyPresent ? (
-                           <div className="relative">
-                               <select value={name} onChange={(e) => { const s = existingShops.find(s => s.name === e.target.value); if(s) handleExistingShopSelect(s.id); }} className="w-full bg-green-50 text-gray-800 font-medium px-5 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#7dad57] appearance-none border border-green-200">
-                                   <option value="">-- Seleziona Attività --</option>
-                                   {existingShops.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                               </select>
-                           </div>
-                        ) : (
-                           <input type="text" required placeholder="Es. EcoMarket Trento" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-100 text-gray-800 px-5 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#7dad57]" />
-                        )}
+    <div className="flex items-center gap-2 ml-4 mb-1">
+        <Type className="w-4 h-4 text-gray-400" />
+        <label className="text-gray-600 font-bold text-sm">Nome Attività</label>
+    </div>
+    
+    {activeTab === 'claim' && isAlreadyPresent ? (
+        <div className="relative">
+            {/* CONTROLLO LISTA VUOTA PER EVITARE MENU ROTTI */}
+            {existingShops.length === 0 ? (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-2xl text-yellow-800 text-sm">
+                    ⚠️ Nessun negozio caricato. Riprova a ricaricare la pagina.
+                </div>
+            ) : (
+                <>
+                    <select 
+                        value={selectedExistingShopId || ""} 
+                        onChange={(e) => handleExistingShopSelect(e.target.value)} 
+                        className="w-full bg-green-50 text-gray-800 font-medium px-5 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#7dad57] appearance-none border border-green-200 cursor-pointer"
+                    >
+                        <option value="">-- Seleziona la tua Attività --</option>
+                        {existingShops.map(s => (
+                            <option key={s.id} value={s.id}>
+                                {s.name} ({s.address || "Nessun indirizzo"})
+                            </option>
+                        ))}
+                    </select>
+                    {/* Icona freccina */}
+                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                        <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
                     </div>
+                </>
+            )}
+        </div>
+    ) : (
+        <input 
+            type="text" 
+            required 
+            placeholder="Es. EcoMarket Trento" 
+            value={name} 
+            onChange={(e) => setName(e.target.value)} 
+            className="w-full bg-gray-100 text-gray-800 px-5 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#7dad57]" 
+        />
+    )}
+</div>
 
                     <div className="space-y-1">
    <div className="flex items-center gap-2 ml-4 mb-1">
@@ -269,7 +328,6 @@ const AddShopModal: React.FC<AddShopModalProps> = ({ isOpen, onClose, onSubmit, 
 
                     <div className="space-y-1">
                         <div className="flex items-center gap-2 ml-4 mb-1"><MapPin className="w-4 h-4 text-gray-400" /><label className="text-gray-600 font-bold text-sm">Indirizzo</label></div>
-                        <input type="text" required placeholder="Es. Via Roma 10" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full bg-gray-100 text-gray-800 px-5 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#7dad57]" />
                     </div>
 
                     {/* Coordinate */}

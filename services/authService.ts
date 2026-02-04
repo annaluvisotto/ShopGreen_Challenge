@@ -52,6 +52,9 @@ export const login = async (body: {}, google = false): Promise<UserData> => { //
     console.log("TOKEN RICEVUTO DAL SERVER:", data.token);
     
     localStorage.setItem('token', data.token); //salvo il token nella memoria del browser per tenerlo anche nella altre pagine
+    localStorage.setItem('username', data.username); 
+    localStorage.setItem('role', mappingRole(data.ruolo));
+    localStorage.setItem('userId', data.id);
 
     return {
       role: mappingRole(data.ruolo),

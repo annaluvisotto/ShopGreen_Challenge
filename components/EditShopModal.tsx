@@ -243,11 +243,12 @@ interface EditShopModalProps {
   onClose: () => void;
   onUpdate: (updatedShop: Shop) => Promise<void>;
   userRole: UserRole;
+  currentUserId?: string | null;
 }
 
 const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 
-const EditShopModal: React.FC<EditShopModalProps> = ({ shop, isOpen, onClose, onUpdate, userRole }) => {
+const EditShopModal: React.FC<EditShopModalProps> = ({ shop, isOpen, onClose, onUpdate, userRole, currentUserId }) => {
   const [formData, setFormData] = useState<Partial<Shop>>({});
   const [newOwner, setNewOwner] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -333,15 +334,19 @@ const EditShopModal: React.FC<EditShopModalProps> = ({ shop, isOpen, onClose, on
       setStructuredHours(newHours);
   };
 
-  if (!isOpen || !shop || userRole !== UserRole.OPERATOR) return null;
+  const isOperator = userRole === UserRole.OPERATOR;
+  const isOwner = currentUserId && shop && shop.ownerId === currentUserId;
+  const canEdit = isOperator || isOwner;
+
+  if (!shop || !canEdit) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsSaving(true);
 
-    if (!formData.name || !formData.address) {
-       setError("Nome e Indirizzo sono obbligatori.");
+    if (!formData.name) {
+       setError("Il nome è obbligatorio");
        setIsSaving(false);
        return;
     }
@@ -390,6 +395,16 @@ const EditShopModal: React.FC<EditShopModalProps> = ({ shop, isOpen, onClose, on
         setIsSaving(false);
     }
   };
+
+  const pendingRequest = shop?.pendingOwnerId;
+
+// 2. Funzione per accettare (copia l'ID nel campo del proprietario)
+const handleApproveClaim = () => {
+    if (pendingRequest) {
+        setNewOwner(pendingRequest); // Imposta l'input "Gestione Proprietario"
+        alert("ID Utente copiato! Ora clicca su 'Salva Modifiche' in fondo al form per confermare.");
+    }
+};
 
   return (
     <div className="fixed inset-0 z-[3000] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -448,16 +463,6 @@ const EditShopModal: React.FC<EditShopModalProps> = ({ shop, isOpen, onClose, on
             </div>
           </div>
 
-          <div className="space-y-1">
-             <label className="text-sm font-medium text-gray-700">Indirizzo</label>
-             <input 
-               type="text" 
-               className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 outline-none"
-               value={formData.address || ''}
-               onChange={e => setFormData({...formData, address: e.target.value})}
-             />
-          </div>
-
           {/* NUOVA SEZIONE ORARI NEL MODALE DI MODIFICA */}
           <div className="bg-gray-50 rounded-[20px] p-5 border border-gray-100">
                 <div className="flex items-center gap-2 mb-3">
@@ -512,17 +517,8 @@ const EditShopModal: React.FC<EditShopModalProps> = ({ shop, isOpen, onClose, on
                 </div>
           </div>
 
-          <div className="space-y-1">
-             <label className="text-sm font-medium text-gray-700">Descrizione</label>
-             <textarea 
-               rows={3}
-               className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 outline-none"
-               value={formData.description || ''}
-               onChange={e => setFormData({...formData, description: e.target.value})}
-             />
-          </div>
-
           {/* Associazione Venditore */}
+          {userRole === UserRole.OPERATOR && (
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
              <h3 className="font-bold text-blue-900 text-sm mb-3 flex items-center gap-2">
                <UserPlus className="w-4 h-4"/> Gestione Proprietario
@@ -543,6 +539,25 @@ const EditShopModal: React.FC<EditShopModalProps> = ({ shop, isOpen, onClose, on
                 </p>
              </div>
           </div>
+          )}
+
+          {userRole === UserRole.OPERATOR && pendingRequest && (
+               <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-xl flex flex-col gap-2">
+                   <div className="flex items-center gap-2 text-orange-800 font-bold">
+                       Richiesta di Rivendicazione
+                   </div>
+                   <p className="text-sm text-orange-700">
+                       L'utente <span className="font-mono bg-white px-1 border border-orange-200 rounded">{pendingRequest}</span> ha richiesto questa attività.
+                   </p>
+                   <button 
+                       type="button"
+                       onClick={handleApproveClaim}
+                       className="self-start mt-1 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold shadow-sm transition-colors"
+                   >
+                       Accetta Richiesta (Imposta Proprietario)
+                   </button>
+               </div>
+           )}
 
           {/* Links */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-100">

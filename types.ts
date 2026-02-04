@@ -37,8 +37,7 @@ export interface Shop {
   categories: ShopCategory[];
   status: ShopStatus;
   coordinates: Coordinates;
-  address: string;
-  description: string;
+  description: string,
   hours: string;
   rawHours?: any;
   imageUrl?: string; // New field for popup header
@@ -50,6 +49,7 @@ export interface Shop {
   reviews: Review[];
   isEcommerce?: boolean;
   ownerId?: string; // RF11: Username of the associated seller
+  pendingOwnerId?: string;
 }
 
 export interface Zone {

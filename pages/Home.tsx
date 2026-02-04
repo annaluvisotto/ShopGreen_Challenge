@@ -400,11 +400,7 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
   const [activeCategory, setActiveCategory] = useState<FilterType>('Tutte');
   const [searchQuery, setSearchQuery] = useState('');
   const [mapCenter, setMapCenter] = useState(TRENTO_CENTER);
-  
-  // Identità utente
-  const currentUserId = userRole === UserRole.ANONYMOUS 
-    ? null 
-    : (userName || (userRole === UserRole.OPERATOR ? 'Operator1' : 'Mario Rossi'));
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // --- STATO DATI REALI ---
   const [shops, setShops] = useState<Shop[]>([]); // Iniziamo vuoti!
@@ -419,6 +415,17 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
 
   const location = useLocation();
 
+  useEffect(() => {
+      // 1. Recuperiamo i dati reali salvati dopo il Login
+      const storedUserId = localStorage.getItem('userId');
+      const storedRole = localStorage.getItem('role');        
+      
+      if (storedUserId && storedRole !== 'anonimo') {
+        setCurrentUserId(storedUserId);
+    } else {
+        setCurrentUserId(null);
+    }
+    }, []);
 
   const fetchShops = async () => {
     setIsLoading(true);
@@ -479,7 +486,6 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
 
       const backendPayload = {
         nome: formData.name,
-        indirizzo: formData.address,
         coordinate: [formData.coordinates.lat, formData.coordinates.lng],
         categoria: [formData.category], 
         licenzaOppureFoto: formData.imageUrl || "https://placehold.co/400", 
@@ -491,13 +497,19 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
         proprietario: formData.ownerId
       };
 
-      await createNegozio(backendPayload);
+      if (formData.isExistingUpdate === true && formData.id) {
+             // Qui chiamiamo la PUT
+             await updateNegozio(formData.id, backendPayload);
+             alert("Richiesta di rivendicazione inviata con successo!");
+        } else {
+             // Qui chiamiamo la POST (che crea il duplicato)
+             await createNegozio(backendPayload);
+             alert("Nuova attività creata!");
+        }
       
       await fetchShops(); 
       setAddModalOpen(false);
       setAddModalInitialData(undefined);
-      
-      alert(`Attività "${formData.name}" inserita con successo!`);
 
     } catch (error: any) {
       console.error(error);
@@ -508,15 +520,20 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
   // --- 3. MODIFICA NEGOZIO (UPDATE) ---
   const handleUpdateShop = async (updatedShop: Shop) => {
       try {
-        // MAPPING: Frontend Shop -> Backend Update Body
-        // Inviamo solo i campi che vogliamo modificare
+        let orariBackend;
+        if (updatedShop.rawHours) {
+          // Utilizziamo la stessa funzione che usi per la creazione!
+          orariBackend = convertHoursToBackend(updatedShop.rawHours);
+        }
         const backendPayload = {
             nome: updatedShop.name,
-            indirizzo: updatedShop.address,
             licenzaOppureFoto: updatedShop.imageUrl,
             linkSito: updatedShop.website,
+            categoria: updatedShop.categories,
             maps: updatedShop.googleMapsLink,
             mappe: updatedShop.iosMapsLink,
+            ...(orariBackend && { orari: orariBackend }),
+            ...(updatedShop.ownerId && { proprietario: updatedShop.ownerId })
             // Aggiungi qui altri campi se il modale di edit li gestisce
         };
 
@@ -536,6 +553,7 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
   const handleVerify = async (id: string, isPositive: boolean) => {
      if (!currentUserId) return;
 
+     
      try {
        // Chiamiamo il service (che gestisce già il token)
        await sendFeedback(id, isPositive);
@@ -560,8 +578,7 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
   // La categoria è già filtrata dal backend nella fetchShops
   const filteredShops = useMemo(() => {
     return shops.filter(shop => {
-      const matchesSearch = shop.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            shop.address.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = shop.name.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesSearch;
     });
   }, [shops, searchQuery]);
@@ -690,6 +707,7 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
         currentMapCenter={mapCenter}
         existingShops={shops}
         initialData={addModalInitialData}
+        currentUserId={currentUserId}
       />
 
       {/* Modale Modifica */}
@@ -699,6 +717,7 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
         onClose={() => setEditingShop(null)}
         onUpdate={handleUpdateShop}
         userRole={userRole}
+        currentUserId={currentUserId}
       />
 
     </div>

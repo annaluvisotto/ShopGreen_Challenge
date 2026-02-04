@@ -451,7 +451,7 @@ import L from 'leaflet';
 import { Shop, ShopStatus, UserRole } from '../types';
 import { 
   Heart, ThumbsUp, 
-  MessageSquare, Send, Edit2, Flag, ArrowLeft, AlertTriangle 
+  MessageSquare, Send, Edit2, Flag, ArrowLeft, AlertTriangle, Clock
 } from 'lucide-react';
 
 // Icons setup
@@ -484,7 +484,7 @@ const createIcon = (status: ShopStatus) => {
 interface CustomMarkerProps {
   shop: Shop;
   userRole: UserRole;
-  userName: string | null;
+  userName?: string | null;
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
   onVerify: (id: string, isPositive: boolean) => void;
@@ -574,6 +574,10 @@ const CustomMarker: React.FC<CustomMarkerProps> = ({
   };
 
   const statusLabel = getStatusLabel();
+
+  const canEdit = 
+    userRole === UserRole.OPERATOR || 
+    (userName && shop.ownerId === userName);
 
   return (
     <Marker 
@@ -696,28 +700,34 @@ const CustomMarker: React.FC<CustomMarkerProps> = ({
                     </span>
                 </div>
 
-                {userRole === UserRole.OPERATOR && onEditClick && (
-                   <button 
-                     type="button"
-                     onClick={(e) => {
-                         e.stopPropagation();
-                         onEditClick(shop);
-                     }}
-                     className="text-xs text-blue-600 font-bold hover:underline mb-3 flex items-center gap-1"
-                   >
-                     <Edit2 className="w-3 h-3"/> Modifica scheda
-                   </button>
-                )}
+              {/* BOTTONE MODIFICA: Visibile se OPERATORE oppure se PROPRIETARIO */}
+              {/* (userRole === UserRole.OPERATOR || (userName && shop.ownerId === userName)) */}
+              {(userRole === UserRole.OPERATOR || (userName && shop.ownerId === userName)) && onEditClick && (
+                  <button 
+                      type="button"
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          onEditClick(shop);
+                      }}
+                      className="text-xs text-blue-600 font-bold hover:underline mb-3 flex items-center gap-1"
+                  >
+                      <Edit2 className="w-3 h-3"/> Modifica scheda
+                  </button>
+              )}
 
-                <p className="text-sm text-gray-500 font-medium mb-3 border-b border-gray-100 pb-2">{shop.category}</p>
-                <p className="text-sm text-gray-700 mb-4">{shop.address}</p>
+                {/* Categoria (Aggiornato per gestire l'array) */}
+                <p className="text-sm text-gray-500 font-medium mb-3 border-b border-gray-100 pb-2 capitalize">
+                    {shop.categories?.[0] || 'Categoria non specificata'}
+                </p>
 
-                {/* Opening Hours */}
-                <div className="mb-4">
-                  <span className="text-sm font-bold text-gray-900 block mb-1">Orari:</span>
-                  <div className="text-sm text-gray-600 whitespace-pre-line leading-relaxed pl-1 border-l-2 border-gray-200">
-                    {shop.hours}
-                  </div>
+                        {/* Opening Hours */}
+                        <div className="mb-4 bg-gray-50 p-2 rounded-lg border border-gray-100 flex items-start gap-2">
+                {/* Assicurati di aver importato Clock da lucide-react in alto */}
+                <Clock className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
+                <div className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
+                    {/* shop.hours contiene la stringa formattata dal service */}
+                    {shop.hours || "Orari non disponibili"}
+                </div>
                 </div>
 
                 {/* Website Link */}

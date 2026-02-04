@@ -221,7 +221,7 @@ export default Notifications;**/
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Notification, NotificationType, UserRole, Shop } from '../types';
-import { Bell, CheckCircle, Info, Ticket, FileText, XCircle, ArrowLeft, Loader2, Store } from 'lucide-react';
+import { Bell, CheckCircle, Info, Ticket, FileText, XCircle, ArrowLeft, Loader2, Store, UserCheck } from 'lucide-react'; // Aggiunta icona UserCheck
 
 // Servizi
 import { getNotifications } from '../services/notificheService';
@@ -236,7 +236,10 @@ interface NotificationsProps {
 
 const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [localNotifications, setLocalNotifications] = useState<Notification[]>([]);
+  
+  // Nota: Assumiamo che Notification estenda Shop o abbia i campi extra come pendingOwnerId
+  // Se TypeScript si lamenta, dovresti usare 'any[]' o aggiornare l'interfaccia Notification
+  const [localNotifications, setLocalNotifications] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(false);
   
   // Stato per il Modale di Modifica/Approvazione
@@ -244,10 +247,12 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
 
   const navigate = useNavigate();
 
-  // 1. CARICAMENTO (Scarica i negozi non verificati)
+  // 1. CARICAMENTO (Scarica i negozi non verificati O con rivendicazione)
   const refreshNotifications = async () => {
         setIsLoading(true);
         const data = await getNotifications();
+        // Il backend ora restituisce sia i nuovi (verificato: false) 
+        // sia le rivendicazioni (proprietarioInAttesa: string).
         setLocalNotifications(data);
         setIsLoading(false);
   };
@@ -259,7 +264,10 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
   // Filter logic
   const filteredNotifications = localNotifications.filter(n => {
     if (n.type === NotificationType.SYSTEM) return true;
-    if (userRole === UserRole.OPERATOR) return n.type === NotificationType.REPORT;
+    if (userRole === UserRole.OPERATOR) {
+        // Mostriamo sia le segnalazioni REPORT sia le Rivendicazioni (che sono tecnicamente REPORT arricchiti)
+        return n.type === NotificationType.REPORT;
+    }
     return n.type === NotificationType.PROMO; 
   });
 
@@ -281,33 +289,28 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
   // B. QUANDO L'OPERATORE SALVA IL FORM (CONFERMA)
   const handleShopApproved = async (updatedShop: Shop) => {
       try {
-          // 1. Aggiorniamo i dati (nel caso l'operatore abbia corretto nome/via)
-          // 2. IMPORTANTE: Forziamo lo stato a VERIFICATO (o OPEN) per farlo apparire nella mappa a tutti
-          const payload = {
-              ...updatedShop, // I dati modificati dal form
-              verificatoDaOperatore: true // LA CHIAVE MAGICA
-          };
-          
-          // Nota: updateNegozio nel service dovrà gestire questo payload
-          // Dovrai assicurarti che updateNegozio mappi correttamente il payload per il backend
-           // Per ora assumiamo che updateNegozio in Home gestisca il mapping
-           // Qui usiamo una logica simile a Home.tsx handleUpdateShop
-           
-           // Hack rapido: chiamiamo il backend direttamente o usiamo il service
-           // Se updateNegozio accetta 'any', passiamo il payload backend-friendly
+          // Costruiamo il payload per il backend (negozi.js PUT)
            const backendPayload = {
-                nome: updatedShop.name,
-                licenzaOppureFoto: updatedShop.imageUrl,
-                categoria: updatedShop.categories, // Array
-                coordinate: [updatedShop.coordinates.lat, updatedShop.coordinates.lng],
-                verificatoDaOperatore: true // APPROVAZIONE!
+               nome: updatedShop.name,
+               licenzaOppureFoto: updatedShop.imageUrl,
+               categoria: updatedShop.categories, 
+               coordinate: [updatedShop.coordinates.lat, updatedShop.coordinates.lng],
+               
+               verificatoDaOperatore: true, // LA CHIAVE MAGICA: Approva il negozio
+               
+               // <--- MODIFICA FONDAMENTALE PER RIVENDICAZIONE --->
+               // Se EditShopModal ha impostato un ownerId (perché l'operatore ha cliccato "Accetta Richiesta"),
+               // dobbiamo passarlo al backend. Il backend userà questo per promuovere l'utente.
+               proprietario: updatedShop.ownerId 
+               // -------------------------------------------------
            };
            
            await updateNegozio(updatedShop.id, backendPayload);
 
-          alert("Negozio verificato!");
+          alert("Operazione completata con successo!");
           setShopToApprove(null); // Chiudi modale
-          refreshNotifications(); // Ricarica lista (il negozio sparirà da qui e andrà in mappa)
+          refreshNotifications(); // Ricarica lista (il negozio sparirà da qui)
+          setSelectedId(null);    // Deseleziona
           
       } catch (error) {
           console.error(error);
@@ -317,11 +320,11 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
 
   // C. RESPINGI (CANCELLA IL NEGOZIO)
   const handleReject = async (id: string) => {
-      if(!window.confirm("Sei sicuro di voler respingere questa segnalazione?")) return;
+      if(!window.confirm("Sei sicuro di voler respingere questa richiesta? Se è un nuovo negozio verrà cancellato.")) return;
       
       try {
           await deleteNegozio(id);
-          alert("Segnalazione respinta e cancellata");
+          alert("Richiesta respinta e cancellata");
           setSelectedId(null);
           refreshNotifications();
       } catch (error) {
@@ -332,14 +335,13 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-8 h-[calc(100vh-64px)] flex flex-col md:flex-row gap-6">
       
-      {/* ... (COLONNA SINISTRA IDENTICA A PRIMA) ... */}
+      {/* COLONNA SINISTRA: LISTA */}
        <div className={`w-full md:w-1/3 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col ${selectedId ? 'hidden md:flex' : 'flex'}`}>
-         {/* ... Header e Lista ... */}
-         {/* Usa il codice della risposta precedente per la lista, è perfetto */}
-          <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
+         
+         <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                <Bell className="w-5 h-5 text-green-600" /> 
-               {userRole === UserRole.OPERATOR ? 'Negozi da Approvare' : 'Notifiche'}
+               {userRole === UserRole.OPERATOR ? 'Da Approvare' : 'Notifiche'}
             </h2>
          </div>
          <div className="overflow-y-auto flex-1 p-2 space-y-2 relative">
@@ -351,25 +353,41 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
             {!isLoading && filteredNotifications.length === 0 ? (
                <div className="text-center py-10 text-gray-400">Tutto pulito! Nessuna notifica.</div>
             ) : (
-               filteredNotifications.map(notification => (
+               filteredNotifications.map(notification => {
+                 // <--- MODIFICA: Capiamo se è una rivendicazione --->
+                 // Controlliamo se esiste pendingOwnerId o proprietarioInAttesa
+                 const isClaim = !!(notification.pendingOwnerId || notification.proprietarioInAttesa);
+                 // -------------------------------------------------
+
+                 return (
                  <button
                    key={notification.id}
                    onClick={() => setSelectedId(notification.id)}
                    className={`w-full text-left p-4 rounded-xl transition-all border border-transparent
                      ${selectedId === notification.id 
-                       ? 'bg-green-50 border-green-200 ring-1 ring-green-300' 
+                       ? (isClaim ? 'bg-orange-50 border-orange-200 ring-1 ring-orange-300' : 'bg-green-50 border-green-200 ring-1 ring-green-300')
                        : 'hover:bg-gray-50'
                      }
                    `}
                  >
                    <div className="flex justify-between items-start mb-1">
-                      <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase">In Attesa</span>
+                      {/* ETICHETTA DIFFERENZIATA */}
+                      {isClaim ? (
+                          <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-1">
+                              <UserCheck className="w-3 h-3"/> Rivendicazione
+                          </span>
+                      ) : (
+                          <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase">
+                              Nuovo Negozio
+                          </span>
+                      )}
+                      
                       <span className="text-xs text-gray-400">{notification.date}</span>
                    </div>
-                   <h3 className="text-sm font-bold text-gray-900 mb-1 line-clamp-1">{notification.title}</h3>
-                   <p className="text-xs text-gray-500 line-clamp-2">{notification.previewText}</p>
+                   <h3 className="text-sm font-bold text-gray-900 mb-1 line-clamp-1">{notification.title || notification.name}</h3>
+                   <p className="text-xs text-gray-500 line-clamp-2">{notification.previewText || notification.address}</p>
                  </button>
-               ))
+               )})
             )}
          </div>
       </div>
@@ -379,39 +397,60 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
       <div className={`w-full md:w-2/3 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col ${!selectedId ? 'hidden md:flex' : 'flex'}`}>
          
          {selectedNotification ? (
-            <div className="flex-1 overflow-y-auto p-6 md:p-10">
+            // Logic to calculate isClaim inside render
+            (() => {
+                const isClaim = !!(selectedNotification.pendingOwnerId || selectedNotification.proprietarioInAttesa);
+
+                return (
+                <div className="flex-1 overflow-y-auto p-6 md:p-10">
                  
                  {/* Header dettaglio */}
                  <div className="mb-6 flex items-center gap-3">
-                    <div className="bg-orange-100 p-3 rounded-full">
-                        <Store className="w-8 h-8 text-orange-600" />
+                    <div className={`${isClaim ? 'bg-orange-100' : 'bg-green-100'} p-3 rounded-full`}>
+                        <Store className={`w-8 h-8 ${isClaim ? 'text-orange-600' : 'text-green-600'}`} />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">{selectedNotification.shopName}</h1>
+                        <h1 className="text-2xl font-bold text-gray-900">{selectedNotification.shopName || selectedNotification.name}</h1>
                         <p className="text-sm text-gray-500">ID: {selectedNotification.id}</p>
                     </div>
                  </div>
 
-                 {/* Dati del negozio da approvare */}
+                 {/* <--- MODIFICA: ALERT VISIVO SE È RIVENDICAZIONE ---> */}
+                 {isClaim && (
+                     <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl mb-6">
+                         <h3 className="text-orange-800 font-bold mb-1 flex items-center gap-2">
+                             ⚡ Richiesta di Proprietà
+                         </h3>
+                         <p className="text-sm text-orange-700">
+                             Un utente ha richiesto di rivendicare questa attività esistente. 
+                             Clicca su <b>Verifica</b> per aprire il modale e accettare la richiesta.
+                         </p>
+                     </div>
+                 )}
+                 {/* ------------------------------------------------ */}
+
+                 {/* Dati del negozio */}
                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8">
-                     <h3 className="text-gray-900 font-bold mb-4">Dati inseriti dall'utente:</h3>
+                     <h3 className="text-gray-900 font-bold mb-4">Dati Attività:</h3>
                      <ul className="space-y-3 text-sm text-gray-700">
-                         <li><strong>Categoria:</strong> {selectedNotification.previewText}</li>
-                         <li><strong>Segnalato da:</strong> {selectedNotification.reporterId}</li>
-                         <li><strong>Licenza/Foto:</strong> {selectedNotification.licenseId}</li>
+                         <li><strong>Categoria:</strong> {selectedNotification.previewText || selectedNotification.category}</li>
+                         {/* Se è rivendicazione mostriamo chi la chiede, altrimenti chi ha creato */}
+                         <li>
+                             <strong>{isClaim ? 'Richiesto da ID:' : 'Creato da ID:'}</strong> 
+                             {' '}{selectedNotification.pendingOwnerId || selectedNotification.proprietarioInAttesa || selectedNotification.reporterId || "Anonimo"}
+                         </li>
                      </ul>
                      
                      {selectedNotification.imageUrl && (
                          <div className="mt-4">
-                             <p className="text-xs font-bold mb-1">Immagine allegata:</p>
+                             <p className="text-xs font-bold mb-1">Licenza / Foto caricata:</p>
                              <img src={selectedNotification.imageUrl} alt="Prova" className="h-40 rounded border border-gray-300 object-cover" />
                          </div>
                      )}
                  </div>
 
                  <p className="mb-8 text-gray-600">
-                     Questo negozio è stato creato da un utente ed è in attesa di verifica.
-                     Clicca su <b>Verifica e Pubblica</b> per controllare i dati nel form, correggere eventuali errori e pubblicarlo ufficialmente.
+                     Clicca su <b>Verifica e Pubblica</b> per aprire il pannello di controllo, revisionare i dati e confermare l'operazione.
                  </p>
 
                  {/* ACTION BUTTONS */}
@@ -420,9 +459,11 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
                       {/* Bottone APPROVA (Apre il Modal) */}
                       <button 
                         onClick={() => handleOpenApproveModal(selectedNotification)}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-xl font-bold shadow-md flex items-center justify-center gap-2 text-lg transition-transform hover:scale-105"
+                        className={`flex-1 text-white px-6 py-4 rounded-xl font-bold shadow-md flex items-center justify-center gap-2 text-lg transition-transform hover:scale-105
+                            ${isClaim ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}
+                        `}
                       >
-                         <CheckCircle className="w-6 h-6" /> Verifica e Pubblica
+                         <CheckCircle className="w-6 h-6" /> {isClaim ? 'Esamina Richiesta' : 'Verifica e Pubblica'}
                       </button>
 
                       {/* Bottone RESPINGI (Cancella) */}
@@ -430,14 +471,16 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
                          onClick={() => handleReject(selectedNotification.id)}
                          className="flex-1 bg-white border-2 border-red-100 text-red-600 hover:bg-red-50 px-6 py-4 rounded-xl font-bold flex items-center justify-center gap-2 text-lg transition-colors"
                       >
-                         <XCircle className="w-6 h-6" /> Rifiuta e Cancella
+                         <XCircle className="w-6 h-6" /> Rifiuta
                       </button>
                  </div>
             </div>
+            );
+            })()
          ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
                <Store className="w-16 h-16 mb-4 opacity-20" />
-               <p className="text-lg font-medium">Seleziona un negozio per valutarlo</p>
+               <p className="text-lg font-medium">Seleziona una notifica per gestirla</p>
             </div>
          )}
       </div>
@@ -449,7 +492,7 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
         onClose={() => setShopToApprove(null)}
         onUpdate={handleShopApproved}
         userRole={userRole}
-        // Opzionale: puoi passare una prop "isApprovalMode={true}" per cambiare il testo del bottone nel modale da "Salva" a "Approva e Pubblica"
+        // Passiamo l'ID dell'operatore se serve, ma qui non è critico
       />
 
     </div>
