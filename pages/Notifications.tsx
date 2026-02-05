@@ -100,12 +100,19 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
                coordinate: [updatedShop.coordinates.lat, updatedShop.coordinates.lng],
                orari: orariBackend, 
                verificatoDaOperatore: true,
-               proprietario: updatedShop.ownerId 
+               proprietario: updatedShop.ownerId,
+               linkSito: updatedShop.website,
+               maps: updatedShop.googleMapsLink,
+               mappe: updatedShop.iosMapsLink
            };
            await updateNegozio(updatedShop.id, backendPayload);
-           alert("Operazione completata!");
-           setShopToApprove(null); refreshNotifications(); setSelectedId(null);    
-      } catch (error) { alert("Errore durante l'approvazione"); }
+           alert("Operazione completata con successo! I dati sono stati aggiornati!");
+           setShopToApprove(null); 
+           refreshNotifications(); 
+           setSelectedId(null);    
+      } 
+      catch (error) { 
+        alert("Errore durante l'approvazione"); }
   };
 
   const handleReject = async (id: string, isClaim: boolean) => {
