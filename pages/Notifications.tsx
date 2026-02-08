@@ -34,26 +34,32 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [shopToApprove, setShopToApprove] = useState<Shop | null>(null);
 
-  const refreshNotifications = async () => {
+const refreshNotifications = async () => {
         setIsLoading(true);
         try {
-            const shops = await getNegozi(undefined, undefined, false);
-            const mappedNotifications: Notification[] = shops.map(shop => ({
-                id: shop.id,
-                type: NotificationType.REPORT,
-                title: shop.name,
-                name: shop.name,
-                previewText: shop.categories.join(', '),
-                category: shop.categories.join(', '),
-                fullDescription: shop.description || '',
-                date: 'In attesa', 
-                read: false,
-                imageUrl: shop.imageUrl,
-                pendingOwnerId: shop.pendingOwnerId, 
-                proprietarioInAttesa: shop.pendingOwnerId,
-                address: `Lat: ${shop.coordinates.lat.toFixed(4)}, Lng: ${shop.coordinates.lng.toFixed(4)}`,
-                reporterId: shop.ownerId
-            }));
+            const allShops = await getNegozi(undefined, undefined, undefined);
+            const shopsOfInterest = allShops.filter(shop => {
+                const isNotVerified = !shop.verifiedByOperator;
+                const hasPendingOwner = !!shop.pendingOwnerId;
+                return isNotVerified || hasPendingOwner;
+            });
+            const mappedNotifications: Notification[] = shopsOfInterest.map(shop => {     
+                return {
+                    id: shop.id,
+                    type: NotificationType.REPORT,
+                    title: shop.name,
+                    name: shop.name,
+                    previewText: shop.categories.join(', '),
+                    category: shop.categories.join(', '),
+                    fullDescription: shop.description || '',
+                    date: 'In attesa', 
+                    read: false,
+                    imageUrl: shop.imageUrl,
+                    pendingOwnerId: shop.pendingOwnerId, 
+                    address: `Lat: ${shop.coordinates.lat.toFixed(4)}, Lng: ${shop.coordinates.lng.toFixed(4)}`,
+                    reporterId: shop.ownerId
+                };
+            });
             setLocalNotifications(mappedNotifications);
         } catch (error) {
             console.error(error);
@@ -67,7 +73,7 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
   const filteredNotifications = localNotifications;
   const selectedNotification = filteredNotifications.find(n => n.id === selectedId);
   const isSelectedClaim = selectedNotification 
-      ? !!(selectedNotification.pendingOwnerId || selectedNotification.proprietarioInAttesa)
+      ? !!selectedNotification.pendingOwnerId
       : false;
 
   const handleOpenApproveModal = async (notification: Notification) => {
@@ -136,7 +142,7 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
             {isLoading && <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-green-600" /></div>}
             {!isLoading && filteredNotifications.length === 0 ? <div className="text-center py-10 text-gray-400">Tutto pulito!</div> : 
                filteredNotifications.map(notification => {
-                 const isItemClaim = !!(notification.pendingOwnerId || notification.proprietarioInAttesa);
+                 const isItemClaim = !!notification.pendingOwnerId;
                  return (
                  <button key={notification.id} onClick={() => setSelectedId(notification.id)} className={`w-full text-left bg-white rounded-xl shadow-sm border-l-4 transition-all hover:shadow-md p-4 ${selectedId === notification.id ? 'ring-2 ring-green-500' : ''} ${isItemClaim ? 'border-orange-500' : 'border-green-500'}`}>
                        <div className="flex justify-between items-center mb-2">
@@ -172,7 +178,7 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
                          <div className="p-2 bg-orange-100 rounded-full text-orange-600"><AlertTriangle className="w-6 h-6" /></div>
                          <div>
                              <h3 className="text-orange-900 font-bold text-lg mb-1">Richiesta di Proprietà</h3>
-                             <p className="text-sm text-orange-800">Un utente (ID: <b>{selectedNotification.pendingOwnerId || selectedNotification.proprietarioInAttesa}</b>) vuole questo negozio.<br/>Clicca "Esamina Rivendicazione" per aprire il modulo, poi clicca sulla barra arancione nel modulo per accettare.</p>
+                             <p className="text-sm text-orange-800">Un utente (ID: <b>{selectedNotification.pendingOwnerId}</b>) vuole questo negozio.<br/>Clicca "Esamina Rivendicazione" per aprire il modulo, poi clicca sulla barra arancione nel modulo per accettare.</p>
                          </div>
                      </div>
                  )}
@@ -182,7 +188,7 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
                          <h3 className="text-gray-900 font-bold mb-4 flex items-center gap-2"><Info className="w-4 h-4"/> Dettagli</h3>
                          <ul className="space-y-3 text-sm text-gray-600">
                              <li className="flex justify-between"><span>Categoria:</span> <span className="font-medium text-gray-900 capitalize">{selectedNotification.previewText || selectedNotification.category}</span></li>
-                             <li className="flex justify-between"><span>{isSelectedClaim ? 'Richiedente:' : 'Segnalato da:'}</span> <span className="font-medium text-gray-900 font-mono bg-white px-2 py-0.5 rounded border border-gray-200 text-xs">{selectedNotification.pendingOwnerId || selectedNotification.proprietarioInAttesa || selectedNotification.reporterId || "Anonimo"}</span></li>
+                             <li className="flex justify-between"><span>{isSelectedClaim ? 'Richiedente:' : 'Segnalato da:'}</span> <span className="font-medium text-gray-900 font-mono bg-white px-2 py-0.5 rounded border border-gray-200 text-xs">{selectedNotification.pendingOwnerId || selectedNotification.reporterId || "Anonimo"}</span></li>
                          </ul>
                      </div>
                      {selectedNotification.imageUrl ? (

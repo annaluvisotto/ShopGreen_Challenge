@@ -125,29 +125,36 @@ export const mapNegozio = (dbItem: any): Shop => {
     votes: {},
     reviews: [],
     ownerId: finalOwnerId,
-    pendingOwnerId: pendingId
+    pendingOwnerId: pendingId,
+    verifiedByOperator: dbItem.verificatoDaOperatore
   };
 };
 
-export const getNegozi = async (nome?: string, categoria?:string, verificatoDaOperatore?: boolean): Promise<Shop[]> => {
+export const getNegozi = async (nome?: string, categoria?:string, verificatoDaOperatore?: boolean, proprietarioInAttesa?: boolean): Promise<Shop[]> => {
   try {
     let url = API_URL + '/negozi';
     const params = new URLSearchParams();
     if (nome) params.append('nome', nome);
     if (categoria && categoria !== 'Tutte') params.append('categoria', categoria);
     if (verificatoDaOperatore !== undefined) params.append('verificatoDaOperatore', String(verificatoDaOperatore));
-    
+    if (proprietarioInAttesa === true) params.append('proprietarioInAttesa', 'true');
+
     if (params.toString()) url += '?' + params.toString();
 
-    const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+    const response = await fetch(url, { 
+      method: 'GET', 
+      headers: { 'Content-Type': 'application/json' } });
+    
+    const data = await response.json();
+
     if (!response.ok) {
-      const erroreServer = await response.json();
-      throw new Error(erroreServer.dettagli);
+      const errMess = data.dettagli;
+      throw new Error(errMess);
     }
-    const datiBackend = await response.json();
-    return datiBackend.map((item: any) => mapNegozio(item));
+    
+    return data.map((item: any) => mapNegozio(item));
   } catch (error) {
-    console.error("Errore getNegozi", error);
+    console.error("Errore nel caricamento delle attività:", error);
     throw error;
   }
 };
@@ -161,13 +168,13 @@ export const getNegozioById = async (negozio_id: string): Promise<Shop> => {
 
     const response = await fetch(url, { method: 'GET', headers: headers });
     if (!response.ok) {
-      const erroreServer = await response.json();
-      throw new Error(erroreServer.dettagli);
+      const errMess = await response.json();
+      throw new Error(errMess.dettagli);
     }
     const datoBackend = await response.json();
     return mapNegozio(datoBackend);
   } catch (error) {
-    console.error("Errore getNegozioById", error);
+    console.error("Errore nella visualizzazione dei dettagli dell'attività:", error);
     throw error;
   }
 };

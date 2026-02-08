@@ -1,6 +1,6 @@
 import { Seller } from '../types';
 
-const API_URL = 'http://localhost:3000/api/eshops';
+const API_URL = 'http://localhost:3000/api/ecommerce';
 
 const mapSeller = (dbItem: any):  Seller => {
     return{
@@ -26,16 +26,16 @@ export const fetchSellers = async(Zone?: string, Categorie?: string): Promise<Se
 
         const response = await fetch(url.toString(), {
             method: 'GET',
-
+            headers: { 'Content-Type': 'application/json' }
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-        throw new Error(data.message);     
+            const errMess = data.dettagli
+            throw new Error(errMess);     
         }
-
-         return data.map(mapSeller);
+        return data.map(mapSeller);
 
     }catch(error:any){
         console.error("Errore nel recupero dei venditori e-commerce", error);

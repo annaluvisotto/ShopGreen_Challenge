@@ -60,7 +60,7 @@ const handleCredentialResponse = async (response: any) => {
       let googleToken = response.credential;
       
       if (!googleToken) {
-          throw new Error("Google did not return a credential token.");
+          throw new Error("Google non ritorna un token.");
       }
 
       const userData = await login({googleToken: googleToken}, true);
@@ -105,7 +105,7 @@ const handleCredentialResponse = async (response: any) => {
               );
             }
           } catch (e) {
-            console.error("Google Sign-in initialization error", e);
+            console.error("Errore durante l'inizializzazione di Google Sign-in", e);
           }
         }
       }, 100);
@@ -124,7 +124,7 @@ const handleCredentialResponse = async (response: any) => {
       onLoginSuccess(user);
       navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Username o password errati.');
+      setError(err.message); //err.message contiene ciò che gli viene inviato dal service con "throw new Error"
     } finally {
       setIsLoading(false);
     }

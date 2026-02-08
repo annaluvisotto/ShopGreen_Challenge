@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { MapContainer, TileLayer, useMapEvents, useMap } from 'react-leaflet';
-import { Search, Plus, Loader2 } from 'lucide-react'; 
+import { Search, Plus, Loader2, AlertTriangle, RefreshCcw } from 'lucide-react'; 
 import { Shop, ShopCategory, UserRole } from '../types';
 import { TRENTO_CENTER } from '../constants';
 import CustomMarker from '../components/CustomMarker';
@@ -97,6 +97,8 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
 
   const [forceOpenId, setForceOpenId] = useState<string | null>(null);
 
+  const [error, setError] = useState<string | null>(null);
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -112,12 +114,14 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
 
   const fetchShops = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const categoryParam = activeCategory === 'Tutte' ? undefined : activeCategory;
       const data = await getNegozi(undefined, categoryParam, true);
       setShops(data);
-    } catch (error) {
-      console.error("Errore fetch shops:", error);
+    } catch (err: any) {
+      console.error("Errore nel caricamento delle attività:", err);
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
@@ -260,6 +264,39 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
 
   const handleMapMove = useCallback((center: { lat: number; lng: number }) => {
   }, []);
+
+  if (error) {
+    return (
+      <div className="relative w-full h-[calc(100vh-64px)] bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-lg border border-red-100 animate-in zoom-in duration-300">
+          
+          <div className="mx-auto w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
+            <AlertTriangle className="w-10 h-10 text-red-500" />
+          </div>
+
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Problema di connessione
+          </h2>
+          
+          <p className="text-gray-500 mb-8 leading-relaxed">
+            {error}
+            <br />
+            <span className="text-xs text-gray-400 mt-2 block font-mono bg-gray-100 py-1 px-2 rounded mt-2 inline-block">
+              Il server fallisce nel stabilire una connessione con il database
+            </span>
+          </p>
+
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-200 hover:shadow-red-300 hover:-translate-y-1"
+          >
+            <RefreshCcw className="w-5 h-5" />
+            Ricarica la pagina
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-[calc(100vh-64px)] overflow-hidden bg-gray-100">

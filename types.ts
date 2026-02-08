@@ -49,6 +49,7 @@ export interface Shop {
   isEcommerce?: boolean;
   ownerId?: string;
   pendingOwnerId?: string;
+  verifiedByOperator?: boolean;
 }
 
 export interface Zone {
@@ -86,8 +87,7 @@ export interface Notification {
   shopName?: string; 
   licenseId?: string; 
   reporterId?: string; 
-  pendingOwnerId?: string;   
-  proprietarioInAttesa?: string;
+  pendingOwnerId?: string;
   category?: string;            
   address?: string;           
   name?: string;

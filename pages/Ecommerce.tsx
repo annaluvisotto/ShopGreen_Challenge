@@ -51,7 +51,7 @@ const Ecommerce: React.FC<EcommerceProps> = () => {
         const data = await ecommerceService.fetchSellers();
         setDbSellers(data);
       } catch (err) {
-        console.error("Fallimento caricamento E-shops dal database");
+        console.error("Errore nel caricamento dei venditori e-commerce");
       } finally {
         setIsLoading(false);
       }
@@ -70,7 +70,7 @@ const Ecommerce: React.FC<EcommerceProps> = () => {
   });
 
   const categories = ['Tutte', ...DB_CATEGORIES];
-  const activeZoneName = selectedZone === 'TUTTE' ? "Tutte le Zone" : selectedZone;
+  const activeZoneName = selectedZone === 'TUTTE' ? "Tutte le zone" : selectedZone;
 
   const handleGoBack = () => {
     setSelectedZone(null);
@@ -95,7 +95,7 @@ const Ecommerce: React.FC<EcommerceProps> = () => {
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
           <div className="text-center md:text-left">
-             <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Venditori E-commerce</h1>
+             <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Venditori E-Commerce</h1>
              <p className="text-gray-500 max-w-2xl">
                Scopri i venditori locali attivi nel tuo quartiere
              </p>
@@ -125,7 +125,7 @@ const Ecommerce: React.FC<EcommerceProps> = () => {
                     <Globe className="w-10 h-10 text-white" />
                     </div>
                     <span className="text-xl font-bold text-white">
-                    Tutte le Zone
+                    Tutte le zone
                     </span>
                     <div className="mt-2 text-sm text-green-100 font-medium">
                     {dbSellers.length} venditori totali
@@ -165,7 +165,7 @@ const Ecommerce: React.FC<EcommerceProps> = () => {
                  className="flex items-center gap-2 text-gray-600 hover:text-green-700 font-semibold transition-colors px-3 py-2 rounded-lg hover:bg-gray-100"
                >
                  <ArrowLeft className="w-5 h-5" />
-                 Torna alle Zone
+                 Torna alle zone
                </button>
                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                  {selectedZone === 'TUTTE' ? <Globe className="w-6 h-6 text-green-600"/> : <MapPin className="w-6 h-6 text-green-600" />}

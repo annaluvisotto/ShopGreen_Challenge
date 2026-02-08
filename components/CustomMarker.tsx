@@ -132,12 +132,21 @@ const CustomMarker: React.FC<CustomMarkerProps> = ({
       ref={markerRef}
       position={[shop.coordinates.lat, shop.coordinates.lng]} 
       icon={icon}
-      eventHandlers={{
-        click: () => {
-          centerMap();
-          setIsReportMode(false);
-        }
-      }}
+    eventHandlers={{
+    click: (e) => {
+      const map = e.target._map;
+      const targetZoom = 16; 
+      const targetLatLng = e.target.getLatLng();
+      const mapHeightInPixels = map.getSize().y;
+      const offsetPixelsY = mapHeightInPixels * 0.4;
+      const pointInPixels = map.project(targetLatLng, targetZoom);
+      const newCenterPointInPixels = pointInPixels.subtract([0, offsetPixelsY]);
+      const newCenterLatLng = map.unproject(newCenterPointInPixels, targetZoom);
+      map.flyTo(newCenterLatLng, targetZoom, {
+        duration: 1.2
+      });
+    },
+  }}
     >
       <Popup 
         className="shop-popup p-0 border-none rounded-xl overflow-hidden shadow-xl" 

@@ -34,17 +34,15 @@ export const login = async (body: {}, google = false): Promise<UserData> => { //
     //controllo che il ritorno sia un json (se no crasha il frontend)
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
-       throw new Error("Endpoint returned HTML instead of JSON.");
+       throw new Error("E' stato tornato un HTML invece di un JSON");
     }
 
     const data = await response.json(); //riconverto stringa ricevuta
 
-    if (!response.ok || !data.success) { //data.success è nel body della risposta, mentreresponse.ok è per il controllo del codice http
-       throw new Error(data.message || 'Login failed from server');
+    if (!response.ok || !data.success) { //data.success è nel body della risposta, mentre response.ok è per il controllo del codice http
+      const errMess = data.dettagli;
+      throw new Error(errMess);
     }
-
-    //per debugging
-    console.log("TOKEN RICEVUTO DAL SERVER:", data.token);
     
     localStorage.setItem('token', data.token); //salvo il token nella memoria del browser per tenerlo anche nella altre pagine
     localStorage.setItem('username', data.username); 
@@ -59,14 +57,13 @@ export const login = async (body: {}, google = false): Promise<UserData> => { //
     };
 
   } catch (error: any) {
-    console.error("login error", error);
+    console.error("Errore durante il login:", error);
     throw error;
-    
   }
 };
 
-//registrazione
-export const register = async (username: string, password: string, email: string, role: UserRole): Promise<{ success: boolean; message: string }> => {
+//registrazione, non nelle api ma implementata
+export const register = async (username: string, password: string, email: string, role: UserRole): Promise<{ success: boolean; titolo: string, dettagli: string }> => {
   try {
    
     //trasformo ruolo in stringe per mandarle a mongoDB
@@ -87,16 +84,18 @@ export const register = async (username: string, password: string, email: string
     const data = await response.json();
 
     if (!response.ok || !data.success) {
-       throw new Error(data.message || 'Registration failed');
+      const errMess = data.dettagli;
+      throw new Error(errMess);
     }
 
     return {
       success: true,
-      message: data.message //mex: "email di conferma inviata"
+      titolo: data.titolo, //mex: "email di conferma inviata"
+      dettagli: data.dettagli
     };
 
   } catch (error: any) {
-    console.error("Registration error:", error);
+    console.error("Errore durante la registrazione:", error);
     throw error;
   }
 };
