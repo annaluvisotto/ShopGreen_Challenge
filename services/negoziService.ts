@@ -40,7 +40,7 @@ const timeToMinutes = (timeStr: string) => {
   return hours * 60 + minutes;
 };
 
-const isNegozioAperto = (orariDB: any): ShopStatus => {
+export const isNegozioAperto = (orariDB: any): ShopStatus => {
   if (!orariDB) return ShopStatus.CLOSED;
   
   const now = new Date();

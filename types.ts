@@ -52,6 +52,13 @@ export interface Shop {
   verifiedByOperator?: boolean;
 }
 
+export interface ShopFavorite {
+  id: string;
+  name: string;
+  status: ShopStatus;
+  coordinates: Coordinates;
+}
+
 export interface Zone {
   id: string;
   name: string;

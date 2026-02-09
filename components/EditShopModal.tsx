@@ -134,7 +134,7 @@ const EditShopModal: React.FC<EditShopModalProps> = ({
                  <div className="p-2 bg-orange-100 rounded-full text-orange-600 mt-1 group-hover:scale-110 transition-transform"><AlertTriangle className="w-5 h-5" /></div>
                  <div>
                      <h3 className="text-orange-900 font-bold text-sm mb-1">Richiesta di Proprietà (Clicca qui)</h3>
-                     <p className="text-xs text-orange-800">L'utente <b>{shop.pendingOwnerId}</b> vuole questo negozio. Clicca su questo box per accettare.</p>
+                     <p className="text-xs text-orange-800">L'utente <b>{shop.pendingOwnerId}</b> rivendica questo negozio. Clicca su questo box per accettare.</p>
                  </div>
              </div>
           )}
@@ -142,7 +142,7 @@ const EditShopModal: React.FC<EditShopModalProps> = ({
           {isApprovalMode && (
               <div className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl border border-gray-200">
                   <div className="flex justify-between items-center mb-2">
-                      <label className="text-gray-700 font-bold text-sm">Licenza o Foto Negozio</label>
+                      <label className="text-gray-700 font-bold text-sm">{isApprovalMode ? "Licenza di vendita" : "Foto del negozio"}</label>
                       {previewImage && <button type="button" onClick={openImageFull} className="text-xs text-blue-600 font-bold flex items-center gap-1 hover:underline"><ExternalLink className="w-3 h-3"/> Apri Originale</button>}
                   </div>
                   

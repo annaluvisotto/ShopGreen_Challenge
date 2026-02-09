@@ -1,13 +1,33 @@
-import { Shop } from '../types';
-import { mapNegozio } from './negoziService';
+import { Shop, ShopStatus, ShopFavorite } from '../types';
+import { isNegozioAperto } from './negoziService';
 const API_URL = 'http://localhost:3000/api/preferiti/users';
 
-export const getPreferiti = async (user_id: string): Promise<Shop[]> => {
+export const mapPreferito = (dbItem: any): ShopFavorite => {
+  let statusCalcolato = ShopStatus.UNVERIFIED; 
+  
+  if (!dbItem.sostenibilitàVerificata) {
+      statusCalcolato = ShopStatus.UNVERIFIED; 
+  } else {
+      statusCalcolato = isNegozioAperto(dbItem.orari);
+  }
+  const coords = {
+      lat: dbItem.coordinate && dbItem.coordinate.length > 0 ? dbItem.coordinate[0] : 0,
+      lng: dbItem.coordinate && dbItem.coordinate.length > 1 ? dbItem.coordinate[1] : 0
+  };
+  return {
+    id: dbItem._id,
+    name: dbItem.nome,
+    status: statusCalcolato,
+    coordinates: coords
+  };
+};
+
+export const getPreferiti = async (user_id: string): Promise<ShopFavorite[]> => {
   try {
     let url = API_URL + '/' + user_id;
     const token = localStorage.getItem('token');
     if (!token) {
-      throw new Error("Utente non autenticato");
+      throw new Error("Token mancante. Utente non autenticato.");
     }
 
     const headers: any = {
@@ -20,15 +40,16 @@ export const getPreferiti = async (user_id: string): Promise<Shop[]> => {
       headers: headers 
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const erroreServer = await response.json();
-      throw new Error(erroreServer.dettagli);
+      const errMess = data.dettagli;
+      throw new Error(errMess);
     }
-    const datiBackend = await response.json();
-    return datiBackend.map((item: any) => mapNegozio(item));
+    return data.map((item: any) => mapPreferito(item));
   } 
   catch (error) {
-    console.error("Errore nella visualizzazione dei preferiti", error);
+    console.error("Errore nella visualizzazione dei preferiti:", error);
     throw error;
   }
 };
@@ -59,7 +80,7 @@ export const addPreferito = async (user_id: string, negozio_id: any): Promise<{s
     return await response.json();
   } 
   catch (error) {
-    console.error("Errore nell'aggiunta del negozio ai preferiti", error);
+    console.error("Errore nell'aggiunta del negozio ai preferiti:", error);
     throw error;
   }
 };
@@ -82,14 +103,16 @@ export const deletePreferito = async (user_id: string, negozio_id: string): Prom
       headers: headers
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const erroreServer = await response.json();
-      throw new Error(erroreServer.dettagli);
+      const errMess = data.dettagli;
+      throw new Error(errMess);
     }
     return;
   } 
   catch (error) {
-    console.error("Errore nell'eliminazione del negozio ai preferiti", error);
+    console.error("Errore nell'eliminazione del negozio ai preferiti:", error);
     throw error;
   }
 };
