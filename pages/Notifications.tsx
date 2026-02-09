@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Notification, NotificationType, UserRole, Shop } from '../types';
 import { Bell, CheckCircle, Info, FileText, XCircle, Loader2, Store, UserCheck, MapPin, AlertTriangle } from 'lucide-react';
 import { getNegozi, updateNegozio, deleteNegozio, getNegozioById } from '../services/negoziService';
@@ -34,17 +33,19 @@ const Notifications: React.FC<NotificationsProps> = ({ userRole }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [shopToApprove, setShopToApprove] = useState<Shop | null>(null);
 
-const refreshNotifications = async () => {
+  const refreshNotifications = async () => {
         setIsLoading(true);
         try {
-            const allShops = await getNegozi(undefined, undefined, undefined);
-            const shopsOfInterest = allShops.filter(shop => {
-                const isNotVerified = !shop.verifiedByOperator;
-                const hasPendingOwner = !!shop.pendingOwnerId;
-                return isNotVerified || hasPendingOwner;
-            });
-            const mappedNotifications: Notification[] = shopsOfInterest.map(shop => {     
-                return {
+            if (userRole === UserRole.OPERATOR) {
+                const allShops = await getNegozi(undefined, undefined, undefined);
+                
+                const shopsOfInterest = allShops.filter(shop => {
+                    const isNotVerified = !shop.verifiedByOperator;
+                    const hasPendingOwner = !!shop.pendingOwnerId;
+                    return isNotVerified || hasPendingOwner;
+                });
+
+                const mappedNotifications: Notification[] = shopsOfInterest.map(shop => ({
                     id: shop.id,
                     type: NotificationType.REPORT,
                     title: shop.name,
@@ -57,10 +58,15 @@ const refreshNotifications = async () => {
                     imageUrl: shop.imageUrl,
                     pendingOwnerId: shop.pendingOwnerId, 
                     address: `Lat: ${shop.coordinates.lat.toFixed(4)}, Lng: ${shop.coordinates.lng.toFixed(4)}`,
-                    reporterId: shop.ownerId
-                };
-            });
-            setLocalNotifications(mappedNotifications);
+                    reporterId: shop.ownerId,
+                    verifiedByOperator: shop.verifiedByOperator 
+                }));
+                setLocalNotifications(mappedNotifications);
+            } 
+            else {
+                setLocalNotifications([]);
+            }
+
         } catch (error) {
             console.error(error);
         } finally {
@@ -68,11 +74,14 @@ const refreshNotifications = async () => {
         }
   };
 
-  useEffect(() => { refreshNotifications(); }, []);
+  useEffect(() => { 
+      refreshNotifications(); 
+  }, [userRole]);
 
   const filteredNotifications = localNotifications;
   const selectedNotification = filteredNotifications.find(n => n.id === selectedId);
-  const isSelectedClaim = selectedNotification 
+  
+  const isSelectedClaimUI = selectedNotification 
       ? !!selectedNotification.pendingOwnerId
       : false;
 
@@ -112,20 +121,22 @@ const refreshNotifications = async () => {
         alert("Errore durante l'approvazione"); }
   };
 
-  const handleReject = async (id: string, isClaim: boolean) => {
-      const msg = isClaim 
-        ? "Vuoi rifiutare la richiesta? Il negozio resterà attivo, ma senza proprietario" 
-        : "Vuoi cancellare definitivamente questa segnalazione?";
+  const handleReject = async (notification: Notification) => {
+      const isExistingShop = notification.verifiedByOperator;
+
+      const msg = isExistingShop
+        ? "Questa è un'attività già verificata. Vuoi rifiutare la richiesta di proprietà? Il negozio resterà attivo ma senza proprietario." 
+        : "Questa è una nuova segnalazione non verificata. Rifiutando, eliminerai definitivamente la scheda del negozio. Continuare?";
 
       if(!window.confirm(msg)) return;
       
       try {
-          if (isClaim) {
-              await updateNegozio(id, { proprietarioInAttesa: null });
-              alert("Richiesta respinta, il negozio è rimasto attivo");
+          if (isExistingShop) {
+              await updateNegozio(notification.id, { proprietarioInAttesa: null });
+              alert("Richiesta respinta, il negozio è rimasto attivo e pubblico.");
           } else {
-              await deleteNegozio(id);
-              alert("Segnalazione cancellata");
+              await deleteNegozio(notification.id);
+              alert("Segnalazione cancellata definitivamente.");
           }
           setSelectedId(null);
           refreshNotifications();
@@ -136,11 +147,11 @@ const refreshNotifications = async () => {
     <div className="max-w-6xl mx-auto p-4 md:p-8 h-[calc(100vh-64px)] flex flex-col md:flex-row gap-6">
        <div className={`w-full md:w-1/3 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col ${selectedId ? 'hidden md:flex' : 'flex'}`}>
          <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Bell className="w-5 h-5 text-green-600" /> Da Approvare</h2>
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Bell className="w-5 h-5 text-green-600" /> Da visualizzare</h2>
          </div>
          <div className="overflow-y-auto flex-1 p-3 space-y-3 relative bg-gray-50/50">
             {isLoading && <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-green-600" /></div>}
-            {!isLoading && filteredNotifications.length === 0 ? <div className="text-center py-10 text-gray-400">Tutto pulito!</div> : 
+            {!isLoading && filteredNotifications.length === 0 ? <div className="text-center py-10 text-gray-400">Nessuna notifica presente</div> : 
                filteredNotifications.map(notification => {
                  const isItemClaim = !!notification.pendingOwnerId;
                  return (
@@ -164,16 +175,16 @@ const refreshNotifications = async () => {
          {selectedNotification ? (
             <div className="flex-1 overflow-y-auto p-6 md:p-10">
                  <div className="mb-6 flex items-center gap-4 border-b border-gray-100 pb-6">
-                    <div className={`${isSelectedClaim ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'} p-4 rounded-2xl`}>
-                        {isSelectedClaim ? <UserCheck className="w-8 h-8" /> : <Store className="w-8 h-8" />}
+                    <div className={`${isSelectedClaimUI ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'} p-4 rounded-2xl`}>
+                        {isSelectedClaimUI ? <UserCheck className="w-8 h-8" /> : <Store className="w-8 h-8" />}
                     </div>
                     <div>
-                        <span className={`text-xs font-bold uppercase tracking-wider ${isSelectedClaim ? 'text-orange-600' : 'text-green-600'}`}>{isSelectedClaim ? 'Richiesta Cambio Proprietà' : 'Nuova Attività Inserita'}</span>
+                        <span className={`text-xs font-bold uppercase tracking-wider ${isSelectedClaimUI ? 'text-orange-600' : 'text-green-600'}`}>{isSelectedClaimUI ? 'Richiesta Cambio Proprietà' : 'Nuova Attività Inserita'}</span>
                         <h1 className="text-3xl font-bold text-gray-900 mt-1">{selectedNotification.shopName || selectedNotification.name}</h1>
                         <p className="text-sm text-gray-400 mt-1 font-mono">ID: {selectedNotification.id}</p>
                     </div>
                  </div>
-                 {isSelectedClaim && (
+                 {isSelectedClaimUI && (
                      <div className="bg-orange-50 border border-orange-200 p-5 rounded-2xl mb-8 shadow-sm flex items-start gap-3">
                          <div className="p-2 bg-orange-100 rounded-full text-orange-600"><AlertTriangle className="w-6 h-6" /></div>
                          <div>
@@ -188,7 +199,7 @@ const refreshNotifications = async () => {
                          <h3 className="text-gray-900 font-bold mb-4 flex items-center gap-2"><Info className="w-4 h-4"/> Dettagli</h3>
                          <ul className="space-y-3 text-sm text-gray-600">
                              <li className="flex justify-between"><span>Categoria:</span> <span className="font-medium text-gray-900 capitalize">{selectedNotification.previewText || selectedNotification.category}</span></li>
-                             <li className="flex justify-between"><span>{isSelectedClaim ? 'Richiedente:' : 'Segnalato da:'}</span> <span className="font-medium text-gray-900 font-mono bg-white px-2 py-0.5 rounded border border-gray-200 text-xs">{selectedNotification.pendingOwnerId || selectedNotification.reporterId || "Anonimo"}</span></li>
+                             <li className="flex justify-between"><span>{isSelectedClaimUI ? 'Richiedente:' : 'Segnalato da:'}</span> <span className="font-medium text-gray-900 font-mono bg-white px-2 py-0.5 rounded border border-gray-200 text-xs">{selectedNotification.pendingOwnerId || selectedNotification.reporterId || "Anonimo"}</span></li>
                          </ul>
                      </div>
                      {selectedNotification.imageUrl ? (
@@ -200,11 +211,15 @@ const refreshNotifications = async () => {
                  </div>
 
                  <div className="flex flex-col gap-3 pt-4 border-t border-gray-100">
-                      <button onClick={() => handleOpenApproveModal(selectedNotification)} className={`w-full text-white px-6 py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-3 ${isSelectedClaim ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}`}>
-                         <CheckCircle className="w-6 h-6" /> {isSelectedClaim ? 'Esamina Rivendicazione' : 'Verifica Dati e Pubblica'}
+                      <button onClick={() => handleOpenApproveModal(selectedNotification)} className={`w-full text-white px-6 py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-3 ${isSelectedClaimUI ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}`}>
+                         <CheckCircle className="w-6 h-6" /> {isSelectedClaimUI ? 'Esamina Rivendicazione' : 'Verifica Dati e Pubblica'}
                       </button>
-                      <button onClick={() => handleReject(selectedNotification.id, isSelectedClaim)} className="w-full bg-white border-2 border-red-100 text-red-500 hover:bg-red-50 px-6 py-4 rounded-xl font-bold flex items-center justify-center gap-3">
-                         <XCircle className="w-6 h-6" /> {isSelectedClaim ? 'Rifiuta Rivendicazione (Non Cancella)' : 'Rifiuta e Cancella'}
+                      <button onClick={() => handleReject(selectedNotification)} className="w-full bg-white border-2 border-red-100 text-red-500 hover:bg-red-50 px-6 py-4 rounded-xl font-bold flex items-center justify-center gap-3">
+                         <XCircle className="w-6 h-6" /> 
+                         {selectedNotification.verifiedByOperator 
+                            ? 'Rifiuta Rivendicazione (Non Cancella)' 
+                            : 'Rifiuta e Cancella Segnalazione'
+                         }
                       </button>
                  </div>
             </div>

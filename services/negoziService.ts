@@ -141,9 +141,18 @@ export const getNegozi = async (nome?: string, categoria?:string, verificatoDaOp
 
     if (params.toString()) url += '?' + params.toString();
 
+    const token = localStorage.getItem('token');
+
+    const headers: any = { 
+        'Content-Type': 'application/json' 
+    };
+    if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+    }
+
     const response = await fetch(url, { 
       method: 'GET', 
-      headers: { 'Content-Type': 'application/json' } });
+      headers: headers });
     
     const data = await response.json();
 
@@ -197,7 +206,7 @@ export const createNegozio = async (dati: any): Promise<{success: boolean}> => {
     }
     return await response.json();
   } catch (error){
-    console.error("Errore createNegozio", error);
+    console.error("Errore nella creazione della segnalazione:", error);
     throw error;
   }
 };
@@ -219,7 +228,7 @@ export const deleteNegozio = async (negozio_id: string): Promise<{success: boole
     }
     return await response.json();
   } catch (error){
-    console.error("Errore deleteNegozio", error);
+    console.error("Errore nell'eliminazione del negozio:", error);
     throw error;
   }
 };
@@ -243,7 +252,7 @@ export const updateNegozio = async (negozio_id: string, dati: any): Promise<Shop
     const negozioAggBackend = await response.json();
     return mapNegozio(negozioAggBackend);
   } catch (error){
-    console.error("Errore updateNegozio", error);
+    console.error("Errore nella modifica del negozio:", error);
     throw error;
   }
 };

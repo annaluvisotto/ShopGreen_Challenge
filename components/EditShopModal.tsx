@@ -56,8 +56,8 @@ const EditShopModal: React.FC<EditShopModalProps> = ({
       setLng(shop.coordinates.lng);
 
       const lat = shop.coordinates?.lat; const lng = shop.coordinates?.lng;
-      if (shop.googleMapsLink) setGoogleMapsLink(shop.googleMapsLink); else if (lat && lng) setGoogleMapsLink(`http://googleusercontent.com/maps.google.com/maps?q=${lat},${lng}`);
-      if (shop.iosMapsLink) setIosMapsLink(shop.iosMapsLink); else if (lat && lng) setIosMapsLink(`http://maps.apple.com/?ll=${lat},${lng}`);
+      if (shop.googleMapsLink) setGoogleMapsLink(shop.googleMapsLink); else if (lat && lng) setGoogleMapsLink(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
+      if (shop.iosMapsLink) setIosMapsLink(shop.iosMapsLink); else if (lat && lng) setIosMapsLink(`https://maps.apple.com/?q=${lat},${lng}`);
     }
   }, [shop]);
 

@@ -14,7 +14,6 @@ interface AddShopModalProps {
 }
 
 const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-
 const formatCategoryLabel = (cat: string) => {
   if (cat === 'cura della casa e della persona') return 'Cura Casa & Persona';
   return cat.charAt(0).toUpperCase() + cat.slice(1);
@@ -121,6 +120,13 @@ const AddShopModal: React.FC<AddShopModalProps> = ({ isOpen, onClose, onSubmit, 
     const isUpdate = activeTab === 'claim' && isAlreadyPresent && !!selectedExistingShopId;
     const finalId = isUpdate ? selectedExistingShopId! : Date.now().toString();
 
+
+    const currentLat = Number(lat);
+    const currentLng = Number(lng);
+    
+    const finalGoogleMapsLink = googleMapsLink || `https://www.google.com/maps/search/?api=1&query=${currentLat},${currentLng}`;
+    const finalIosMapsLink = iosMapsLink || `https://maps.apple.com/?q=${currentLat},${currentLng}`;
+
     const newShop: Shop = {
       id: finalId,
       name: name,
@@ -130,8 +136,8 @@ const AddShopModal: React.FC<AddShopModalProps> = ({ isOpen, onClose, onSubmit, 
       status: ShopStatus.UNVERIFIED, 
       sustainabilityScore: 0,
       website: website,
-      googleMapsLink: googleMapsLink,
-      iosMapsLink: iosMapsLink,
+      googleMapsLink: finalGoogleMapsLink,
+      iosMapsLink: finalIosMapsLink,
       imageUrl: previewImage || '',
       votes: {},
       reviews: [],

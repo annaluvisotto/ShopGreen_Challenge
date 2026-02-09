@@ -98,6 +98,7 @@ export interface Notification {
   category?: string;            
   address?: string;           
   name?: string;
+  verifiedByOperator?: boolean;
 }
 
 export interface UserVote {

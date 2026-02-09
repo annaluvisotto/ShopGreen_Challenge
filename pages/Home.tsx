@@ -310,7 +310,7 @@ const Home: React.FC<HomeProps> = ({ userRole, favorites, toggleFavorite, userNa
             <input
               type="text"
               className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm transition-shadow"
-              placeholder="Cerca negozio, via o prodotto..."
+              placeholder="Cerca negozio..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
