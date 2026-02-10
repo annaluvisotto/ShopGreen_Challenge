@@ -92,6 +92,7 @@ export const deletePreferito = async (user_id: string, negozio_id: string): Prom
   try {
     let url = API_URL + '/' + user_id + '?negozio_id=' + negozio_id;
     const token = localStorage.getItem('token');
+    
     if (!token) {
       throw new Error("Utente non autenticato");
     }
@@ -106,12 +107,16 @@ export const deletePreferito = async (user_id: string, negozio_id: string): Prom
       headers: headers
     });
 
+    if (response.status === 204) {
+        return; 
+    }
     const data = await response.json();
 
     if (!response.ok) {
-      const errMess = data.dettagli;
+      const errMess = data.dettagli || "Errore sconosciuto";
       throw new Error(errMess);
     }
+    
     return;
   } 
   catch (error) {
