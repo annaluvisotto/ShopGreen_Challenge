@@ -135,7 +135,7 @@ function App() {
               onLogoutClick={handleLogout}
             />
         </div>
-        <main className="flex-1 overflow-y-auto overflow-x-hidden relative w-full pb-24 md:pb-0 scroll-smooth">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden relative w-full pb-0 md:pb-0 scroll-smooth">
           <Routes>
             <Route 
               path="/" 
