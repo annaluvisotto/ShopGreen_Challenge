@@ -361,7 +361,7 @@ const CustomMarker: React.FC<CustomMarkerProps> = ({
                             e.stopPropagation();
                             setShowGuidelines(true);
                           }}
-                          className="font-bold text-emerald-800 cursor-pointer hover:underline decoration-emerald-500 underline-offset-2 bg-transparent border-none p-0 inline"
+                          className="font-bold text-emerald-800 mr-1 cursor-pointer hover:underline decoration-emerald-500 underline-offset-2 bg-transparent border-none p-0 inline"
                         >
                           Scopri le nostre linee guida
                         </button>
