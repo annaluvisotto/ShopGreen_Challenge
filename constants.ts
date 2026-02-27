@@ -1,5 +1,5 @@
 
-import { Zone } from './types';
+import { Zone, NotificationType, Notification } from './types';
 
 export const TRENTO_CENTER = { lat: 46.06787, lng: 11.12108 };
 
@@ -23,3 +23,27 @@ export const DB_CATEGORIES = [
   "alimenti",
   "vestiario"
 ];
+
+export const MOCK_NOTIFICATIONS: Notification[] = [
+  // SYSTEM (All)
+  {
+    id: 'n1',
+    type: NotificationType.SYSTEM,
+    title: 'Benvenuto su ShopGreen!',
+    previewText: 'Scopri come utilizzare al meglio la piattaforma.',
+    fullDescription: 'Benvenuto in ShopGreen Trento! La nostra missione è promuovere la sostenibilità locale. Utilizza la mappa per trovare negozi, o la sezione E-Commerce per scambiare oggetti con i vicini.',
+    date: '2023-10-20',
+    read: false
+  },
+  // PROMO (User)
+  {
+    id: 'n2',
+    type: NotificationType.PROMO,
+    title: 'Sconto 20% Altr\'Uso',
+    previewText: 'Sconto del 20% su tutti gli articoli invernali',
+    fullDescription: 'Sconti invernali! Presso ALtr\'Uso Trento, ricevi il 20% di sconto su tutta la collezione invernale.',
+    imageUrl: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80&w=600',
+    date: 'Oggi',
+    read: false
+  }
+  ];
